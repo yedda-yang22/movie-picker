@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>你更喜欢哪部电影？</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet"/>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5M6VFJWDQF"></script>
+<script>
+  window.dataLayer=window.dataLayer||[];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js',new Date());
+  gtag('config','G-5M6VFJWDQF');
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<style>
+:root {
+  --bg: #321c0f;
+  --bg2: #3f2412;
+  --bg3: #4e2e16;
+  --gold: #c8a265;
+  --gold-light: #e8c98a;
+  --gold-dim: #8a6a3a;
+  --cream: #f5e6c8;
+  --dark: #0f0804;
+  --text-dim: #9a7a50;
+  --en: 'Playfair Display', Georgia, serif;
+  --zh: 'Noto Serif SC', STSong, serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--cream);
+  font-family: var(--zh); min-height: 100vh; overflow-x: hidden;
+}
+
+/* Film strips */
+.film-strip {
+  position: fixed; left: 0; right: 0; height: 30px;
+  background: var(--dark); z-index: 100;
+  display: flex; align-items: center; overflow: hidden;
+}
+.film-strip.top { top: 0; border-bottom: 2px solid var(--gold-dim); }
+.film-strip.bottom { bottom: 0; border-top: 2px solid var(--gold-dim); }
+.film-hole { min-width: 18px; height: 20px; background: var(--bg); border-radius: 3px; margin: 0 5px; flex-shrink: 0; }
+
+/* Background decos */
+.bg-deco { position: fixed; pointer-events: none; z-index: 0; opacity: 0.08; }
+.bg-reel { width: 140px; height: 140px; bottom: 55px; right: 16px; }
+.bg-pop { bottom: 48px; left: 16px; font-size: 80px; opacity: 0.1; pointer-events: none; position: fixed; z-index: 0; }
+.bg-star { position: fixed; pointer-events: none; z-index: 0; color: var(--gold); opacity: 0.2; font-style: normal; }
+
+/* Top bar: lang button + home button */
+#lang-btn {
+  position: fixed; top: 40px; right: 16px; z-index: 200;
+  background: transparent; border: 1.2px solid var(--gold-dim);
+  color: var(--gold); font-family: var(--en); font-size: 11px;
+  letter-spacing: 1px; padding: 5px 12px; border-radius: 20px;
+  cursor: pointer; transition: all 0.3s;
+}
+#lang-btn:hover { border-color: var(--gold); color: var(--gold-light); background: rgba(200,162,101,0.1); }
+
+#home-btn {
+  position: fixed; top: 40px; left: 16px; z-index: 200;
+  background: transparent; border: 1.2px solid var(--gold-dim);
+  color: var(--gold); font-family: var(--en); font-size: 11px;
+  letter-spacing: 1px; padding: 5px 12px; border-radius: 20px;
+  cursor: pointer; transition: all 0.3s;
+  display: none; /* shown only during game + result */
+  align-items: center; gap: 5px;
+}
+#home-btn:hover { border-color: var(--gold); color: var(--gold-light); background: rgba(200,162,101,0.1); }
+#home-btn svg { width: 12px; height: 12px; fill: currentColor; }
+
+/* App */
+#app {
+  position: relative; z-index: 10;
+  min-height: 100vh; padding: 48px 16px 56px;
+  display: flex; flex-direction: column; align-items: center;
+}
+
+/* ===== REGION SCREEN ===== */
+#screen-region {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: calc(100vh - 104px);
+  animation: fadeIn 0.6s ease;
+}
+.logo-tag {
+  font-family: var(--en); font-size: 10px; letter-spacing: 6px;
+  color: var(--gold-dim); margin-bottom: 14px; text-transform: uppercase; text-align: center;
+}
+.logo-title {
+  font-family: var(--en); font-size: clamp(26px,5.5vw,44px);
+  font-weight: 900; color: var(--cream); line-height: 1.1;
+  margin-bottom: 6px; text-align: center;
+}
+.logo-subtitle {
+  font-family: var(--zh); font-size: clamp(16px,3.5vw,22px);
+  color: var(--gold); font-weight: 600; letter-spacing: 4px;
+  text-align: center; margin-bottom: 10px;
+}
+.logo-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 16px auto 32px; width: fit-content;
+}
+.ld-line { width: 50px; height: 1px; background: linear-gradient(to right, transparent, var(--gold-dim)); }
+.ld-line.r { background: linear-gradient(to left, transparent, var(--gold-dim)); }
+.ld-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
+.region-hint {
+  font-family: var(--zh); font-size: 13px; color: var(--text-dim);
+  letter-spacing: 2px; margin-bottom: 32px; text-align: center;
+}
+.region-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; width: 100%; max-width: 460px; }
+.region-btn {
+  background: transparent; border: 1.2px solid var(--gold-dim);
+  color: var(--cream); font-family: var(--zh); font-size: 15px;
+  font-weight: 600; letter-spacing: 3px; padding: 18px 12px;
+  border-radius: 4px; cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  position: relative; overflow: hidden;
+}
+.region-btn::before {
+  content: ''; position: absolute; inset: 0; background: var(--gold);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); z-index: 0;
+}
+.region-btn:hover::before { transform: scaleX(1); }
+.region-btn:hover { color: var(--dark); border-color: var(--gold); }
+.region-btn span { position: relative; z-index: 1; display: block; }
+.region-btn .region-en { font-family: var(--en); font-size: 10px; letter-spacing: 1px; opacity: 0.55; font-weight: 400; margin-top: 3px; }
+
+/* ===== GAME SCREEN ===== */
+#screen-game {
+  display: none; flex-direction: column; align-items: center;
+  width: 100%; max-width: 860px; animation: fadeIn 0.5s ease;
+}
+.game-header { text-align: center; margin-bottom: 22px; width: 100%; }
+.game-title { font-family: var(--en); font-size: clamp(18px,3.5vw,28px); font-weight: 700; color: var(--cream); margin-bottom: 4px; }
+.game-subtitle { font-family: var(--zh); font-size: clamp(12px,2vw,15px); color: var(--gold); letter-spacing: 3px; }
+
+.progress-area { margin: 12px 0 20px; width: 100%; max-width: 460px; }
+.progress-label { font-family: var(--en); font-size: 10px; letter-spacing: 4px; color: var(--gold-dim); text-align: center; margin-bottom: 7px; }
+.progress-bar-bg { width: 100%; height: 2px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(to right, var(--gold-dim), var(--gold)); border-radius: 2px; transition: width 0.5s ease; width: 0%; }
+
+.posters-area { display: flex; align-items: center; gap: 20px; width: 100%; justify-content: center; }
+.poster-card {
+  flex: 1; max-width: 320px; cursor: pointer; position: relative;
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+.poster-card:hover { transform: scale(1.03) translateY(-5px); }
+.poster-card:hover .poster-glow { opacity: 1; }
+.poster-glow { position: absolute; inset: -2px; border-radius: 8px; border: 2px solid var(--gold); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.poster-img-wrap { width: 100%; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; background: var(--bg3); }
+.poster-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s; }
+.poster-card:hover .poster-img-wrap img { transform: scale(1.04); }
+.poster-info { padding: 10px 4px 4px; text-align: center; }
+.poster-name-zh { font-family: var(--zh); font-size: clamp(13px,2.2vw,17px); font-weight: 700; color: var(--cream); margin-bottom: 3px; }
+.poster-name-en { font-family: var(--en); font-size: clamp(9px,1.4vw,12px); color: var(--gold-dim); font-style: italic; }
+
+.vs-badge {
+  font-family: var(--en); font-size: clamp(14px,2.5vw,20px); font-weight: 900; color: var(--gold);
+  width: 44px; height: 44px; border: 1.5px solid var(--gold-dim); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; background: var(--bg); letter-spacing: 1px;
+}
+
+@keyframes winnerPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+@keyframes loserFade { to{opacity:0.15;transform:scale(0.94)} }
+.poster-winner { animation: winnerPulse 0.4s ease; }
+.poster-loser { animation: loserFade 0.4s ease forwards; }
+
+/* ===== RESULT SCREEN ===== */
+#screen-result {
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; min-height: calc(100vh - 104px);
+  text-align: center; animation: fadeIn 0.8s ease;
+}
+.result-label { font-family: var(--en); font-size: 10px; letter-spacing: 6px; color: var(--gold-dim); margin-bottom: 14px; text-transform: uppercase; }
+.result-poster-wrap { position: relative; width: clamp(140px,36vw,240px); margin: 0 auto 16px; }
+.result-poster-wrap img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; border: 2px solid var(--gold); display: block; }
+.result-crown { position: absolute; top: -26px; left: 50%; transform: translateX(-50%); font-size: 28px; }
+.result-movie-name { font-family: var(--zh); font-size: clamp(20px,4.5vw,32px); font-weight: 700; color: var(--cream); margin-bottom: 5px; letter-spacing: 2px; }
+.result-movie-en { font-family: var(--en); font-size: clamp(11px,1.8vw,14px); color: var(--gold-dim); font-style: italic; margin-bottom: 18px; }
+.result-tagline { font-family: var(--zh); font-size: clamp(12px,2.2vw,15px); color: var(--gold); letter-spacing: 2px; margin-bottom: 10px; }
+.result-social { font-family: var(--zh); font-size: clamp(11px,1.8vw,13px); color: var(--text-dim); margin-bottom: 28px; min-height: 18px; }
+.result-buttons { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.result-btn {
+  font-family: var(--zh); font-size: 14px; font-weight: 600;
+  letter-spacing: 2px; padding: 12px 28px; border-radius: 4px;
+  cursor: pointer; transition: all 0.3s; border: 1.2px solid var(--gold);
+}
+.result-btn.primary { background: var(--gold); color: var(--dark); }
+.result-btn.primary:hover { background: var(--gold-light); }
+.result-btn.secondary { background: transparent; color: var(--gold); }
+.result-btn.secondary:hover { background: rgba(200,162,101,0.12); }
+
+/* ===== SHARE OVERLAY ===== */
+#share-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85); z-index: 500;
+  align-items: center; justify-content: center; padding: 20px;
+}
+#share-overlay.active { display: flex; }
+#share-card {
+  position: relative; background: var(--bg);
+  border: 1.5px solid var(--gold-dim); border-radius: 10px;
+  padding: 28px 24px 24px; max-width: 340px; width: 100%; text-align: center;
+}
+#share-close {
+  position: absolute; top: 10px; right: 14px;
+  background: none; border: none; color: var(--gold-dim);
+  font-size: 22px; cursor: pointer; line-height: 1; transition: color 0.2s;
+}
+#share-close:hover { color: var(--gold); }
+.share-film-strip {
+  display: flex; overflow: hidden; margin: 0 -24px 18px;
+  background: var(--dark); height: 22px; align-items: center;
+  border-top: 1.5px solid var(--gold-dim); border-bottom: 1.5px solid var(--gold-dim);
+}
+.share-film-strip.btm { margin: 18px -24px 0; }
+.share-film-hole { min-width: 14px; height: 14px; background: var(--bg); border-radius: 2px; margin: 0 4px; flex-shrink: 0; }
+.share-tag { font-family: var(--en); font-size: 9px; letter-spacing: 5px; color: var(--gold-dim); margin-bottom: 10px; text-transform: uppercase; }
+.share-poster-wrap { width: clamp(90px,25vw,130px); margin: 0 auto 10px; position: relative; }
+.share-poster-wrap img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 5px; border: 1.5px solid var(--gold); display: block; }
+.share-crown { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 20px; }
+.share-movie-name { font-family: var(--zh); font-size: clamp(16px,4vw,22px); font-weight: 700; color: var(--cream); margin-bottom: 3px; letter-spacing: 1px; }
+.share-movie-en { font-family: var(--en); font-size: 11px; color: var(--gold-dim); font-style: italic; margin-bottom: 10px; }
+.share-tagline { font-family: var(--zh); font-size: 12px; color: var(--gold); letter-spacing: 1px; margin-bottom: 14px; }
+.share-divider { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; }
+.share-divider-line { flex: 1; height: 1px; background: var(--gold-dim); opacity: 0.4; }
+.share-divider-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--gold-dim); }
+.share-qr-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+#share-qr-box { flex-shrink: 0; }
+#share-qr-box canvas, #share-qr-box img { border: 3px solid var(--cream); border-radius: 4px; display: block; }
+.share-qr-label { font-family: var(--zh); font-size: 11px; color: var(--text-dim); line-height: 1.7; text-align: left; }
+.share-hint { margin-top: 12px; font-family: var(--zh); font-size: 12px; color: rgba(200,162,101,0.45); letter-spacing: 1px; text-align: center; }
+
+/* Confetti */
+.confetti-piece { position: fixed; top: -20px; pointer-events: none; z-index: 999; animation: confettiFall linear forwards; }
+@keyframes confettiFall { 0%{transform:translateY(0) rotate(0deg);opacity:1} 100%{transform:translateY(110vh) rotate(720deg);opacity:0} }
+
+/* Animations */
+@keyframes fadeIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideInLeft { from{opacity:0;transform:translateX(-28px)} to{opacity:1;transform:translateX(0)} }
+@keyframes slideInRight { from{opacity:0;transform:translateX(28px)} to{opacity:1;transform:translateX(0)} }
+.slide-left { animation: slideInLeft 0.42s ease; }
+.slide-right { animation: slideInRight 0.42s ease; }
+
+@media (max-width: 560px) {
+  .posters-area { gap: 8px; }
+  .vs-badge { width: 34px; height: 34px; font-size: 13px; }
+  .region-grid { gap: 10px; }
+  .region-btn { padding: 15px 8px; font-size: 14px; letter-spacing: 2px; }
+}
+</style>
+</head>
+<body>
+
+<div class="film-strip top" id="film-top"></div>
+<div class="film-strip bottom" id="film-bottom"></div>
+
+<svg class="bg-deco bg-reel" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="70" cy="70" r="66" fill="none" stroke="#c8a265" stroke-width="3.5"/>
+  <circle cx="70" cy="70" r="20" fill="#c8a265"/><circle cx="70" cy="70" r="9" fill="#321c0f"/>
+  <circle cx="70" cy="14" r="9" fill="#c8a265"/><circle cx="70" cy="126" r="9" fill="#c8a265"/>
+  <circle cx="14" cy="70" r="9" fill="#c8a265"/><circle cx="126" cy="70" r="9" fill="#c8a265"/>
+  <circle cx="30" cy="30" r="9" fill="#c8a265"/><circle cx="110" cy="110" r="9" fill="#c8a265"/>
+  <circle cx="110" cy="30" r="9" fill="#c8a265"/><circle cx="30" cy="110" r="9" fill="#c8a265"/>
+</svg>
+<div class="bg-pop">🍿</div>
+<em class="bg-star" style="top:110px;left:36px;font-size:22px">✦</em>
+<em class="bg-star" style="top:210px;right:54px;font-size:14px">✦</em>
+<em class="bg-star" style="bottom:180px;left:90px;font-size:16px">✦</em>
+
+<!-- Home button (shown during game & result) -->
+<button id="home-btn" onclick="goHome()">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+  </svg>
+  <span data-zh="首页" data-en="Home">首页</span>
+</button>
+
+<!-- Lang button -->
+<button id="lang-btn" onclick="toggleLang()">EN</button>
+
+<!-- Share overlay -->
+<div id="share-overlay">
+  <div id="share-card">
+    <button id="share-close" onclick="closeShare()">×</button>
+    <div class="share-film-strip" id="share-strip-top"></div>
+    <div class="share-tag" data-zh="✦ 豆瓣 TOP 250 · 我的本命电影 ✦" data-en="✦ DOUBAN TOP 250 · MY WINNER ✦">✦ 豆瓣 TOP 250 · 我的本命电影 ✦</div>
+    <div class="share-poster-wrap">
+      <div class="share-crown">🏆</div>
+      <img id="share-poster-img" src="" alt=""/>
+    </div>
+    <div class="share-movie-name" id="share-name-zh"></div>
+    <div class="share-movie-en" id="share-name-en"></div>
+    <div class="share-tagline" data-zh="万千光影，它是你的唯一 🎬" data-en="Impeccable taste — this one stole your heart 🎬">万千光影，它是你的唯一 🎬</div>
+    <div class="share-divider">
+      <div class="share-divider-line"></div>
+      <div class="share-divider-dot"></div>
+      <div class="share-divider-line"></div>
+    </div>
+    <div class="share-qr-row">
+      <div id="share-qr-box"></div>
+      <div class="share-qr-label">
+        <span data-zh="扫码挑战" data-en="Scan to play">扫码挑战</span><br/>
+        <span data-zh="你的唯一" data-en="Pick your winner">你的唯一</span>
+      </div>
+    </div>
+    <div class="share-film-strip btm" id="share-strip-btm"></div>
+  </div>
+  <div class="share-hint" data-zh="截图保存 · 长按分享" data-en="Screenshot to save · Long press to share">截图保存 · 长按分享</div>
+</div>
+
+<div id="app">
+
+  <!-- REGION SCREEN -->
+  <div id="screen-region">
+    <div class="logo-tag" data-zh="豆瓣 TOP 250 电影淘汰赛" data-en="DOUBAN TOP 250 FILM TOURNAMENT">豆瓣 TOP 250 电影淘汰赛</div>
+    <div class="logo-title" data-zh="你更喜欢哪部电影？" data-en="Which Film Do You Prefer?">你更喜欢哪部电影？</div>
+    <div class="logo-subtitle" data-zh="点击海报，选出你的心头好" data-en="Click a poster to crown your winner">点击海报，选出你的心头好</div>
+    <div class="logo-divider">
+      <div class="ld-line"></div><div class="ld-dot"></div><div class="ld-line r"></div>
+    </div>
+    <div class="region-hint" data-zh="选择一个类别开始" data-en="Choose a category to begin">选择一个类别开始</div>
+    <div class="region-grid">
+      <button class="region-btn" onclick="startGame('chinese')">
+        <span data-zh="华语电影" data-en="Chinese Cinema">华语电影</span>
+        <span class="region-en" data-zh="大陆 · 香港 · 台湾" data-en="Mainland · HK · Taiwan">大陆 · 香港 · 台湾</span>
+      </button>
+      <button class="region-btn" onclick="startGame('western')">
+        <span data-zh="欧美电影" data-en="Western Cinema">欧美电影</span>
+        <span class="region-en" data-zh="北美 · 欧洲" data-en="North America · Europe">北美 · 欧洲</span>
+      </button>
+      <button class="region-btn" onclick="startGame('japanese')">
+        <span data-zh="日韩电影" data-en="Japanese & Korean">日韩电影</span>
+        <span class="region-en" data-zh="日本 · 韩国" data-en="Japan · Korea">日本 · 韩国</span>
+      </button>
+      <button class="region-btn" onclick="startGame('other')">
+        <span data-zh="其他地区" data-en="World Cinema">其他地区</span>
+        <span class="region-en" data-zh="伊朗 · 印度 · 其他" data-en="Iran · India · Others">伊朗 · 印度 · 其他</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screen-game">
+    <div class="game-header">
+      <div class="game-title" data-zh="Pick你的本命电影" data-en="Which Do You Prefer?">Pick你的本命电影</div>
+      <div class="game-subtitle" data-zh="点击海报选择" data-en="Click a poster to choose">点击海报选择</div>
+    </div>
+    <div class="progress-area">
+      <div class="progress-label" id="progress-label">ROUND 1 / 10</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar"></div></div>
+    </div>
+    <div class="posters-area">
+      <div class="poster-card" id="poster-left" onclick="choose('left')">
+        <div class="poster-glow"></div>
+        <div class="poster-img-wrap">
+          <img id="img-left" src="" alt="" loading="lazy"/>
+        </div>
+        <div class="poster-info">
+          <div class="poster-name-zh" id="name-left-zh"></div>
+          <div class="poster-name-en" id="name-left-en"></div>
+        </div>
+      </div>
+      <div class="vs-badge">VS</div>
+      <div class="poster-card" id="poster-right" onclick="choose('right')">
+        <div class="poster-glow"></div>
+        <div class="poster-img-wrap">
+          <img id="img-right" src="" alt="" loading="lazy"/>
+        </div>
+        <div class="poster-info">
+          <div class="poster-name-zh" id="name-right-zh"></div>
+          <div class="poster-name-en" id="name-right-en"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div id="screen-result">
+    <div class="result-label" data-zh="✦ 你的本命电影 ✦" data-en="✦ YOUR WINNER ✦">✦ 你的本命电影 ✦</div>
+    <div class="result-poster-wrap">
+      <div class="result-crown">🏆</div>
+      <img id="result-img" src="" alt=""/>
+    </div>
+    <div class="result-movie-name" id="result-name-zh"></div>
+    <div class="result-movie-en" id="result-name-en"></div>
+    <div class="result-tagline" data-zh="万千光影，它是你的唯一 🎬" data-en="Impeccable taste — this one stole your heart 🎬">万千光影，它是你的唯一 🎬</div>
+    <div class="result-social" id="result-social"></div>
+    <div class="result-buttons">
+      <button class="result-btn secondary" onclick="openShare()" data-zh="分享" data-en="Share">分享</button>
+      <button class="result-btn primary" onclick="playAgain()" data-zh="再玩一次" data-en="Play Again">再玩一次</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="movies.js"></script>
+<script>
+const SUPABASE_URL = 'https://lyrsdulayfmcfarrtyvo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_fUzHuV5rShrYE7WUyxnO-A_wiHFvxQb';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let lang = 'zh';
+let currentRegion = '';
+let currentWinner = null;
+let currentOpponent = null;
+let winnerSide = 'left'; // tracks which side the winner is on
+let round = 0;
+let queue = [];
+let isAnimating = false;
+let qrGenerated = false;
+
+// ===== INIT =====
+function buildStrips() {
+  ['film-top','film-bottom'].forEach(id => {
+    const el = document.getElementById(id);
+    for (let i=0;i<45;i++) { const h=document.createElement('div'); h.className='film-hole'; el.appendChild(h); }
+  });
+  ['share-strip-top','share-strip-btm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    for (let i=0;i<30;i++) { const h=document.createElement('div'); h.className='share-film-hole'; el.appendChild(h); }
+  });
+}
+buildStrips();
+
+// ===== LANGUAGE =====
+function toggleLang() {
+  lang = lang==='zh' ? 'en' : 'zh';
+  document.getElementById('lang-btn').textContent = lang==='zh' ? 'EN' : '中文';
+  document.documentElement.lang = lang==='zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-zh]').forEach(el => {
+    el.textContent = lang==='zh' ? el.dataset.zh : el.dataset.en;
+  });
+  // refresh in-game poster text if needed
+  if (currentWinner) {
+    const cSide = winnerSide === 'left' ? 'right' : 'left';
+    document.getElementById('name-' + winnerSide + '-zh').textContent = lang==='zh' ? currentWinner.zh : currentWinner.en;
+    document.getElementById('name-' + winnerSide + '-en').textContent = lang==='zh' ? currentWinner.en : currentWinner.zh;
+    if (currentOpponent) {
+      document.getElementById('name-' + cSide + '-zh').textContent = lang==='zh' ? currentOpponent.zh : currentOpponent.en;
+      document.getElementById('name-' + cSide + '-en').textContent = lang==='zh' ? currentOpponent.en : currentOpponent.zh;
+    }
+  }
+}
+
+// ===== GA =====
+function track(name, params) {
+  if (typeof gtag !== 'undefined') gtag('event', name, params||{});
+}
+
+// ===== HOME BUTTON =====
+function goHome() {
+  if (round > 0 && round < 10) track('game_exit', { round, region: currentRegion });
+  resetState();
+  showScreen('region');
+}
+
+function resetState() {
+  currentWinner = null; currentOpponent = null; round = 0; queue = [];
+  isAnimating = false; winnerSide = 'left';
+}
+
+// ===== GAME =====
+function startGame(region) {
+  currentRegion = region;
+  const pool = [...MOVIES[region]].sort(() => Math.random()-0.5);
+  queue = pool.slice(0, 11);
+  round = 0;
+  track('game_start', { region });
+
+  // Preload all 11 posters immediately
+  queue.forEach(movie => {
+    const img = new Image();
+    img.src = movie.poster;
+  });
+
+  showScreen('game');
+  nextRound();
+}
+
+function nextRound() {
+  if (round >= 10) { endGame(); return; }
+  round++;
+  updateProgress();
+
+  if (round === 1) {
+    currentWinner   = queue.shift();
+    currentOpponent = queue.shift();
+    winnerSide = 'left'; // first round: winner starts on left
+  } else {
+    currentOpponent = queue.shift();
+    // winnerSide stays as whatever side they won from
+  }
+
+  // Place winner on their side, challenger on the other
+  const challengerSide = winnerSide === 'left' ? 'right' : 'left';
+  const winnerMovie    = currentWinner;
+  const challengerMovie = currentOpponent;
+
+  document.getElementById('img-'   + winnerSide).src = winnerMovie.poster;
+  document.getElementById('img-'   + challengerSide).src = challengerMovie.poster;
+  document.getElementById('name-'  + winnerSide + '-zh').textContent = lang==='zh' ? winnerMovie.zh : winnerMovie.en;
+  document.getElementById('name-'  + winnerSide + '-en').textContent = lang==='zh' ? winnerMovie.en : winnerMovie.zh;
+  document.getElementById('name-'  + challengerSide + '-zh').textContent = lang==='zh' ? challengerMovie.zh : challengerMovie.en;
+  document.getElementById('name-'  + challengerSide + '-en').textContent = lang==='zh' ? challengerMovie.en : challengerMovie.zh;
+
+  // Only animate the challenger side sliding in
+  const challengerEl = document.getElementById('poster-' + challengerSide);
+  challengerEl.classList.remove('slide-left', 'slide-right');
+  void challengerEl.offsetWidth;
+  challengerEl.classList.add(challengerSide === 'left' ? 'slide-left' : 'slide-right');
+
+  enableCards();
+}
+
+function updateProgress() {
+  document.getElementById('progress-bar').style.width = ((round-1)/10*100)+'%';
+  document.getElementById('progress-label').textContent =
+    lang==='zh' ? `第 ${round} 题 / 共 10 题` : `ROUND ${round} / 10`;
+}
+
+function choose(side) {
+  if (isAnimating) return;
+  isAnimating = true;
+  disableCards();
+
+  // currentWinner is on winnerSide, currentOpponent is on the other side
+  const winner = side === winnerSide ? currentWinner : currentOpponent;
+  const winEl  = document.getElementById('poster-' + side);
+  const loseSide = side === 'left' ? 'right' : 'left';
+  const loseEl = document.getElementById('poster-' + loseSide);
+
+  winEl.classList.add('poster-winner');
+  loseEl.classList.add('poster-loser');
+  currentWinner = winner;
+  winnerSide = side; // remember which side won
+  track('round_complete', { round, region: currentRegion, chosen: winner.zh });
+
+  setTimeout(() => {
+    winEl.classList.remove('poster-winner');
+    loseEl.classList.remove('poster-loser');
+    isAnimating = false;
+    nextRound();
+  }, 480);
+}
+
+function disableCards() {
+  document.getElementById('poster-left').style.pointerEvents  = 'none';
+  document.getElementById('poster-right').style.pointerEvents = 'none';
+}
+function enableCards() {
+  document.getElementById('poster-left').style.pointerEvents  = '';
+  document.getElementById('poster-right').style.pointerEvents = '';
+}
+
+async function endGame() {
+  document.getElementById('progress-bar').style.width = '100%';
+  const winner = currentWinner;
+
+  try { await sb.from('results').insert({ movie_title: winner.zh, movie_region: currentRegion }); } catch(e) {}
+
+  let socialText = '';
+  try {
+    const { count } = await sb.from('results')
+      .select('*', { count: 'exact', head: true })
+      .eq('movie_title', winner.zh);
+    socialText = count > 1
+      ? (lang==='zh' ? `已有 ${count} 人和你选了同一部电影` : `${count} people chose the same film as you`)
+      : (lang==='zh' ? '你是第一个选择这部电影的人！' : "You're the first to pick this film!");
+  } catch(e) {}
+
+  document.getElementById('result-img').src = winner.poster;
+  document.getElementById('result-name-zh').textContent = lang==='zh' ? winner.zh : winner.en;
+  document.getElementById('result-name-en').textContent = lang==='zh' ? winner.en : winner.zh;
+  document.getElementById('result-social').textContent  = socialText;
+
+  track('game_complete', { winner: winner.zh, region: currentRegion });
+  showScreen('result');
+  setTimeout(launchConfetti, 500);
+}
+
+// ===== SCREENS =====
+function showScreen(name) {
+  ['region','game','result'].forEach(s => {
+    document.getElementById('screen-'+s).style.display = 'none';
+  });
+  document.getElementById('screen-'+name).style.display = 'flex';
+
+  // Show/hide home button
+  const homeBtn = document.getElementById('home-btn');
+  if (name === 'region') {
+    homeBtn.style.display = 'none';
+  } else {
+    homeBtn.style.display = 'flex';
+  }
+
+  window.scrollTo(0,0);
+}
+
+function playAgain() {
+  resetState();
+  showScreen('region');
+}
+
+// ===== CONFETTI =====
+function launchConfetti() {
+  const colors = ['#c8a265','#f5e6c8','#e8c98a','#d4a843','#fffbe7'];
+  const chars  = ['◆','●','▲','★','■'];
+  for (let i=0;i<75;i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.cssText = `left:${Math.random()*100}vw;color:${colors[Math.floor(Math.random()*colors.length)]};font-size:${7+Math.random()*9}px;animation-duration:${1.6+Math.random()*2}s;animation-delay:${Math.random()*0.7}s`;
+      el.textContent = chars[Math.floor(Math.random()*chars.length)];
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(), 4200);
+    }, i*28);
+  }
+}
+
+// ===== SHARE =====
+function openShare() {
+  if (!currentWinner) return;
+  track('share_click', { winner: currentWinner.zh });
+
+  document.getElementById('share-poster-img').src = currentWinner.poster;
+  document.getElementById('share-name-zh').textContent = lang==='zh' ? currentWinner.zh : currentWinner.en;
+  document.getElementById('share-name-en').textContent = lang==='zh' ? currentWinner.en : currentWinner.zh;
+
+  // Apply lang
+  document.querySelectorAll('#share-overlay [data-zh]').forEach(el => {
+    el.textContent = lang==='zh' ? el.dataset.zh : el.dataset.en;
+  });
+
+  // Generate QR once
+  if (!qrGenerated) {
+    const qrBox = document.getElementById('share-qr-box');
+    qrBox.innerHTML = '';
+    new QRCode(qrBox, {
+      text: window.location.href.split('?')[0],
+      width: 80, height: 80,
+      colorDark: '#321c0f', colorLight: '#f5e6c8',
+    });
+    qrGenerated = true;
+  }
+
+  document.getElementById('share-overlay').classList.add('active');
+}
+
+function closeShare() {
+  document.getElementById('share-overlay').classList.remove('active');
+}
+
+document.getElementById('share-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeShare();
+});
+
+window.addEventListener('beforeunload', () => {
+  if (round > 0 && round < 10) track('game_exit', { round, region: currentRegion });
+});
+
+showScreen('region');
+track('page_view');
+</script>
+</body>
+</html>
