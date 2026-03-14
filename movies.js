@@ -2,7 +2,7 @@
 // 海报路径对应 /posters/ 文件夹内的本地文件，文件名与仓库完全一致
 // 每部电影只出现一次，无重复
 
-const m = (zh, en, file) => ({ zh, en, poster: './posters/' + encodeURIComponent(file) + '.jpg' });
+const m = (zh, en, file) => ({ zh, en, poster: '/posters/' + encodeURIComponent(file) + '.jpg' });
 
 const MOVIES = {
 
