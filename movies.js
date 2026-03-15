@@ -71,7 +71,6 @@ const MOVIES = {
     m('机器人总动员',       'WALL·E',                             '机器人总动员'),
     m('窃听风暴',           'The Lives of Others',                '窃听风暴'),
     m('香水',               'Perfume: The Story of a Murderer',   '香水'),
-    m('帝国的毁灭',         'Downfall',                           '帝国的毁灭'),
     m('朗读者',             'The Reader',                         '朗读者'),
     m('心灵捕手',           'Good Will Hunting',                  '心灵捕手'),
     m('放牛班的春天',       'The Chorus',                         '放牛班的春天'),
