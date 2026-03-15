@@ -31,7 +31,6 @@ const MOVIES = {
     m('英雄本色',           'A Better Tomorrow',                  '英雄本色'),
     m('射雕英雄传之东成西就','The Eagle Shooting Heroes',         '射雕英雄传之东成西就'),
     m('唐伯虎点秋香',       'Flirting Scholar',                   '唐伯虎点秋香'),
-    m('神偷奶爸',           'Despicable Me',                      '神偷奶爸'),
     m('疯狂的石头',         'Crazy Stone',                        '疯狂的石头'),
     m('驴得水',             'Donkey Gets Water',                  '驴得水'),
     m('四个春天',           'Four Springs',                       '四个春天'),
